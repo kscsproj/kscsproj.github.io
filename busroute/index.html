@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>全国バス路線・停留所ビューア</title>
+    <script type="module" crossorigin src="/busroute/assets/index-DuHbVQT-.js"></script>
+    <link rel="stylesheet" crossorigin href="/busroute/assets/index-AmGPjUag.css">
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <aside id="panel">
+      <h1>全国バス路線・停留所</h1>
+      <p class="note">
+        国土数値情報 N07(バスルート)/ P11(バス停留所) 2022年度(全国)をもとに表示。
+        ラインには系統番号が無いため事業者名までの色分けです。系統一覧・絞り込みは
+        停留所ベースで、現在の表示範囲内を集計しています。
+      </p>
+
+      <section>
+        <label for="search">停留所名・市区町村で検索(全国)</label>
+        <input id="search" type="text" placeholder="例: 高松駅前 / 札幌" autocomplete="off" />
+        <div id="search-results"></div>
+      </section>
+
+      <section>
+        <div class="section-header">
+          <span>系統一覧(表示範囲内)</span>
+          <button id="clear-selection" type="button">選択解除</button>
+        </div>
+        <p id="route-list-hint" class="note" hidden></p>
+        <div id="route-list"></div>
+      </section>
+
+      <section id="map-controls">
+        <div class="control-row">
+          <label for="basemap-select">背景地図</label>
+          <select id="basemap-select">
+            <option value="osm">OpenStreetMap</option>
+            <option value="gsiStd">GSI標準地図</option>
+            <option value="gsiPale">GSI淡色地図</option>
+            <option value="gsiPhoto">GSI航空写真</option>
+          </select>
+        </div>
+        <div class="control-row">
+          <span>ズームレベル</span>
+          <span id="zoom-level">-</span>
+        </div>
+      </section>
+    </aside>
+
+  </body>
+</html>
