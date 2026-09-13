@@ -1,0 +1,22 @@
+{
+  "name": "view-page",
+  "version": "1.0.0",
+  "description": "国土数値情報などのオープンデータを可視化する個人プロジェクトのポータル(ホームページ)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build:busroute": "node scripts/sync-busroute.mjs",
+    "build": "pnpm run build:busroute && vite build",
+    "preview": "vite preview"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^11.17.0",
+      "onFail": "download"
+    }
+  },
+  "devDependencies": {
+    "vite": "^8.2.2"
+  }
+}

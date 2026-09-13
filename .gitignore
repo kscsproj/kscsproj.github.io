@@ -1,0 +1,14 @@
+# macOSのFinderが生成するメタデータ
+.DS_Store
+
+# Claude Codeのローカル設定
+.claude/
+
+# 依存パッケージ本体(pnpm installで復元できる)
+node_modules/
+
+# ビルド出力(pnpm run build で再生成できる)
+dist/
+
+# bus-route側のビルド成果物をコピーしたもの(scripts/sync-busroute.mjsで再生成できる)
+public/busroute/
