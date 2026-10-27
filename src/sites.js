@@ -13,4 +13,14 @@ export const SITES = [
     thumbnail: "/busroute/cover.jpg",
     thumbnailColors: ["#2f6fed", "#e0422b", "#1f9d6b", "#c98a1f"],
   },
+  {
+    // 実体は別リポジトリ(kokumei-eki)。scripts/sync-ryoseikoku.mjs でビルド時にコピーする。
+    // サムネイルは仮のSVG(令制国=暖色、現代行政区域=寒色)。画面のスクリーンショットが
+    // できたら kokumei-eki/overlay-cover.jpg に置き、ここに thumbnail: "/ryoseikoku/cover.jpg"
+    // を追加する(sync-ryoseikoku.mjs が cover.jpg としてコピーする。readme.md参照)。
+    category: "歴史地理",
+    title: "令制国・郡・現代行政区域",
+    href: "/ryoseikoku/",
+    thumbnailColors: ["#e76f51", "#f6d58e", "#d98cb3", "#1f5fa6", "#4a90c2"],
+  },
 ];

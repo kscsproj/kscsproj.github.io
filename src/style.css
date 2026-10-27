@@ -122,9 +122,35 @@ main {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
 }
 
+.dialog {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
 .dialog h2 {
   margin-top: 0;
   font-size: 16px;
+}
+
+.dialog h3 {
+  margin: 16px 0 6px;
+  font-size: 13px;
+}
+
+.dialog .credits {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.dialog .credits li {
+  margin-bottom: 6px;
+}
+
+.dialog .credits a {
+  color: inherit;
 }
 
 .dialog p {

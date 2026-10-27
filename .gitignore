@@ -12,3 +12,6 @@ dist/
 
 # bus-route側のビルド成果物をコピーしたもの(scripts/sync-busroute.mjsで再生成できる)
 public/busroute/
+
+# kokumei-eki側のoverlay.html/overlay.pmtilesをコピーしたもの(scripts/sync-ryoseikoku.mjsで再生成できる)
+public/ryoseikoku/
