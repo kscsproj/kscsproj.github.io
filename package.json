@@ -7,7 +7,8 @@
     "dev": "vite",
     "build:busroute": "node scripts/sync-busroute.mjs",
     "build:ryoseikoku": "node scripts/sync-ryoseikoku.mjs",
-    "build": "pnpm run build:busroute && pnpm run build:ryoseikoku && vite build",
+    "build:historical-region": "node scripts/sync-historical-region.mjs",
+    "build": "pnpm run build:busroute && pnpm run build:ryoseikoku && pnpm run build:historical-region && vite build",
     "preview": "vite preview"
   },
   "devEngines": {

@@ -13,6 +13,7 @@
 - 現在掲載中のビューア:
   - **バスルート表示**(`/busroute`) — 実体は別リポジトリで開発しているアプリ。ビルド時にこのリポジトリへコピーして同居させている(詳細は下記)
   - **令制国・郡・現代行政区域**(`/ryoseikoku/`) — 実体は別リポジトリ`kokumei-eki`。`overlay.html`とビルド済みの`overlay.pmtiles`だけをビルド時にコピーして同居させている(タイル生成は`kokumei-eki`側)
+  - **歴史行政区域ビューア**(`/historical-region/`) — 実体は別リポジトリ`kokudo-historical-region`。1920〜2026年の行政区域を時点スライダーで見て、合併・改称・分割をたどる。そのリポジトリでビルドした`dist/`を、ビルド時にコピーして同居させている(データ変換・タイル生成は`kokudo-historical-region`側)
 
 ## ディレクトリ構成
 
@@ -25,10 +26,12 @@ view-page/
 │   └── style.css
 ├── scripts/
 │   ├── sync-busroute.mjs    # bus-routeをビルドしてpublic/busrouteへコピーするスクリプト
-│   └── sync-ryoseikoku.mjs  # kokumei-eki(令制国)のoverlay.htmlとoverlay.pmtilesをpublic/ryoseikokuへコピー(ビルドはしない)
+│   ├── sync-ryoseikoku.mjs  # kokumei-eki(令制国)のoverlay.htmlとoverlay.pmtilesをpublic/ryoseikokuへコピー(ビルドはしない)
+│   └── sync-historical-region.mjs  # kokudo-historical-regionをビルドし、そのdistをpublic/historical-regionへコピー
 ├── public/
 │   ├── busroute/         # ↑sync-busroute.mjsが生成する(gitignore対象、手元には無いことがある)
-│   └── ryoseikoku/       # ↑sync-ryoseikoku.mjsが生成する(gitignore対象)
+│   ├── ryoseikoku/       # ↑sync-ryoseikoku.mjsが生成する(gitignore対象)
+│   └── historical-region/  # ↑sync-historical-region.mjsが生成する(gitignore対象)
 └── vite.config.js
 ```
 
@@ -49,7 +52,7 @@ pnpm run dev
 
 - **http://localhost:5173** が立ち上がる
 - ホームページ自体(カード一覧・Aboutダイアログ)の確認はこれで十分
-- ただし`/busroute`・`/ryoseikoku/`へのリンクは、`public/busroute`・`public/ryoseikoku`が存在しない限り開発サーバー上では404になる(下記の`build:busroute`・`build:ryoseikoku`でコピーできる)
+- ただし`/busroute`・`/ryoseikoku/`・`/historical-region/`へのリンクは、`public/busroute`・`public/ryoseikoku`・`public/historical-region`が存在しない限り開発サーバー上では404になる(下記の`build:busroute`・`build:ryoseikoku`・`build:historical-region`でコピーできる)
 
 停止は起動したターミナルで`Ctrl+C`。バックグラウンドで残ってしまった場合:
 
@@ -68,9 +71,10 @@ pnpm run build
 
 1. `scripts/sync-busroute.mjs` — 隣の`kokudo-suchi-view`リポジトリで`bus-route`をビルドし、成果物を`public/busroute`にコピー
 2. `scripts/sync-ryoseikoku.mjs` — 隣の`kokumei-eki`リポジトリの`overlay.html`と`data/overlay/overlay.pmtiles`を`public/ryoseikoku`にコピー(**ビルドはしない**。pmtilesが無い場合は先に`kokumei-eki`で`pnpm build:overlay`を実行する)
-3. `vite build` — ホームページ本体をビルド
+3. `scripts/sync-historical-region.mjs` — 隣の`kokudo-historical-region`リポジトリで`pnpm build`(Viteのみ)を実行し、その`dist/`を`public/historical-region`にコピー(**データ変換はしない**。`build/site`が無い場合は先に`kokudo-historical-region`で`.venv/bin/python -I scripts/prepare_site.py`を実行する)
+4. `vite build` — ホームページ本体をビルド
 
-結果として `dist/` 配下に、トップページ(`index.html`)、`busroute/`(バスルートアプリ一式)、`ryoseikoku/`(令制国・郡・現代行政区域ページ)を含む、**そのままGitHub Pagesにデプロイできる単一の静的ディレクトリ**ができる。
+結果として `dist/` 配下に、トップページ(`index.html`)、`busroute/`(バスルートアプリ一式)、`ryoseikoku/`(令制国・郡・現代行政区域ページ)、`historical-region/`(歴史行政区域ビューア)を含む、**そのままGitHub Pagesにデプロイできる単一の静的ディレクトリ**ができる。
 
 ビルド結果をローカルで確認する場合:
 
@@ -88,6 +92,28 @@ pnpm run build:busroute
 
 ```bash
 pnpm run build:ryoseikoku
+```
+
+歴史行政区域ビューアだけをビルド・コピーしたい場合:
+
+```bash
+pnpm run build:historical-region
+```
+
+### 歴史行政区域ビューア(`/historical-region/`)を更新する流れ
+
+`kokudo-historical-region`が正で、ここはビルド結果を受け取るだけ。データや画面を直したときの手順:
+
+```bash
+# 1. kokudo-historical-region 側でデータを作り直す(画面(app/)だけの変更なら不要)
+#    タイルを作り直したときは build_tiles.py の後に prepare_site.py を実行する(README参照)
+cd ~/Documents/jss/kokudo-historical-region
+.venv/bin/python -I scripts/prepare_site.py
+
+# 2. view-page 側でビルド+コピー → 手元で確認
+cd ~/Documents/jss/view-page
+pnpm run build
+pnpm run preview              # http://localhost:4173/historical-region/ を開く(末尾の/が必要)
 ```
 
 ### 令制国ページ(`/ryoseikoku/`)を更新する流れ
@@ -114,10 +140,10 @@ pnpm run preview              # http://localhost:4173/ryoseikoku/ を開く(末�
 `dist/`をリモートの`gh-pages`ブランチへ公開している(`gh-pages`パッケージ)。コミット・pushは手作業:
 
 ```bash
-# 1. ソースの変更を main にコミット・push(public/ryoseikoku と dist は gitignore 済みで含まれない)
+# 1. ソースの変更を main にコミット・push(public/ryoseikoku・public/historical-region と dist は gitignore 済みで含まれない)
 git status
 git add -A
-git commit -m "add ryoseikoku page"
+git commit -m "add historical-region page"   # 例。内容に合わせて変える
 git push origin main
 
 # 2. ビルド済みの dist/ を gh-pages ブランチへ公開
@@ -133,7 +159,10 @@ pnpm exec gh-pages -d dist -m "Update site"
 pnpm exec gh-pages -d dist -m "Update site" --no-history
 ```
 
-公開後のURL: https://kscsproj.github.io/ryoseikoku/ (末尾の`/`が必要)
+公開後のURL(末尾の`/`が必要):
+
+- https://kscsproj.github.io/ryoseikoku/
+- https://kscsproj.github.io/historical-region/
 
 ## 注意事項 
 
@@ -158,3 +187,14 @@ pnpm exec gh-pages -d dist -m "Update site" --no-history
 
 **幕末明治地勢地図境界データはCC BY-NC(非営利)です。** このデータから作ったタイル(`overlay.pmtiles`)を
 含むこのサイトの公開は非営利の範囲に限り、広告収益や有料サービスへの組み込みなどの商用利用はできません。
+
+歴史行政区域ビューア(`/historical-region/`)は、次のデータを加工して配布しています。
+このページは、上の CC BY-NC のデータを含みません。
+
+| データ | 提供 | ライセンス |
+|---|---|---|
+| [国土数値情報 行政区域データ](https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2026.html)(1920〜2026年の各年版)を加工 | 国土交通省 | 2018年版以降は[利用規約](https://nlftp.mlit.go.jp/ksj/other/agreement_01.html)(CC BY 4.0 と互換)、それ以前は「商用可」の[利用規約](https://nlftp.mlit.go.jp/ksj/other/agreement.html) |
+| [地理院タイル(淡色地図)](https://maps.gsi.go.jp/development/ichiran.html)(背景) | 国土地理院 | 出典の表示 |
+
+各年版の原典と国土地理院長の承認表示は、ビューアの「出典・ご利用にあたって」に載せています。
+前後の版(合併・改称・分割など)は面積の重なりから機械的に推定したもので、公式の沿革ではありません。

@@ -15,3 +15,6 @@ public/busroute/
 
 # kokumei-eki側のoverlay.html/overlay.pmtilesをコピーしたもの(scripts/sync-ryoseikoku.mjsで再生成できる)
 public/ryoseikoku/
+
+# kokudo-historical-region側のビルド成果物(dist)をコピーしたもの(scripts/sync-historical-region.mjsで再生成できる)
+public/historical-region/

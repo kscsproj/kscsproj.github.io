@@ -23,4 +23,14 @@ export const SITES = [
     href: "/ryoseikoku/",
     thumbnailColors: ["#e76f51", "#f6d58e", "#d98cb3", "#1f5fa6", "#4a90c2"],
   },
+  {
+    // 実体は別リポジトリ(kokudo-historical-region)。scripts/sync-historical-region.mjs でビルド時にコピーする。
+    // サムネイルは仮のSVG。画面のスクリーンショットができたら kokudo-historical-region/cover.jpg に置いて
+    // そちらで scripts/prepare_site.py を実行する(build/site/cover.jpg → dist → public/historical-region/cover.jpg
+    // と渡る)。ここに thumbnail: "/historical-region/cover.jpg" を追加する。
+    category: "歴史地理",
+    title: "歴史行政区域ビューア",
+    href: "/historical-region/",
+    thumbnailColors: ["#2f6fed", "#e8590c", "#8fb8de", "#a8d5a2", "#f2c879"],
+  },
 ];
