@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>令制国 × 現代行政区域</title>
+
+  <!-- MapLibre GL JS + PMTiles protocol -->
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/pmtiles@4.5.0/dist/pmtiles.js"></script>
+
+  <style>
+    :root {
+      --kuni: #7a3b1d;     /* 令制国: warm */
+      --modern: #1f5fa6;   /* 現代行政区域: cool */
+    }
+    body {
+      margin: 0;
+      font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
+    }
+    #map { position: absolute; inset: 0; }
+
+    .panel {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1;
+      width: 15.5rem;
+      box-sizing: border-box;
+      padding: 0.7rem 0.8rem;
+      background: rgba(255, 255, 255, 0.94);
+      border-radius: 6px;
+      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+      font-size: 13px;
+      color: #222;
+    }
+    .panel h1 { margin: 0 0 0.5rem; font-size: 14px; }
+    .panel fieldset { margin: 0 0 0.6rem; padding: 0; border: 0; }
+    .panel legend { padding: 0; margin-bottom: 0.2rem; font-weight: 600; }
+    .panel label { display: block; padding: 0.1rem 0; cursor: pointer; }
+    .panel .slider { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; }
+    .panel .slider input { flex: 1; }
+
+    .legend { margin: 0; padding: 0.5rem 0 0; list-style: none; border-top: 1px solid #ddd; }
+    .legend li { display: flex; align-items: center; gap: 0.5rem; padding: 0.15rem 0; }
+    .legend .chips { display: inline-flex; gap: 2px; }
+    .legend .chips i { width: 12px; height: 12px; border: 1px solid var(--kuni); box-sizing: border-box; }
+    .legend .line { width: 26px; border-top: solid var(--modern); }
+    .legend .line.pref { border-width: 3px; }
+    .legend .line.muni { border-width: 1px; }
+    .legend .line.gun { border-color: var(--kuni); border-width: 1px; }
+    .legend.hidden-kuni .kuni-item,
+    .legend.hidden-gun .gun-item,
+    .legend.hidden-modern .modern-item { opacity: 0.35; }
+
+    .notice {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      padding: 1rem 1.2rem;
+      background: #fff3cd;
+      border: 1px solid #e0c36a;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .notice[hidden] { display: none; }
+    .popup-row { margin: 0.1rem 0; font-size: 13px; }
+    .popup-row b { color: #555; font-weight: 600; margin-right: 0.4em; }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="panel">
+  <h1>令制国 × 現代行政区域</h1>
+
+  <fieldset>
+    <legend>背景地図</legend>
+    <label><input type="radio" name="basemap" value="osm" checked> OpenStreetMap</label>
+    <label><input type="radio" name="basemap" value="std"> 地理院 標準地図</label>
+    <label><input type="radio" name="basemap" value="pale"> 地理院 淡色地図</label>
+    <label><input type="radio" name="basemap" value="photo"> 地理院 航空写真</label>
+  </fieldset>
+
+  <fieldset>
+    <legend>表示する層</legend>
+    <label><input type="checkbox" name="layer" value="kuni" checked> 令制国</label>
+    <label><input type="checkbox" name="layer" value="gun"> 郡（所属国と同色・z7〜）</label>
+    <label><input type="checkbox" name="layer" value="modern" checked> 現代の行政区域</label>
+  </fieldset>
+
+  <label class="slider">不透明度
+    <input id="opacity" type="range" min="0.2" max="1" step="0.05" value="1">
+  </label>
+
+  <ul class="legend" id="legend">
+    <li class="kuni-item">
+      <span class="chips" id="kuni-chips"></span>令制国（隣り合う国は別色）
+    </li>
+    <li class="gun-item"><span class="line gun"></span>郡境（所属国と同色の塗り）</li>
+    <li class="modern-item"><span class="line pref"></span>都道府県境</li>
+    <li class="modern-item"><span class="line muni"></span>区市町村境（z8〜）</li>
+  </ul>
+</div>
+
+<div class="notice" id="notice" hidden>
+  タイルデータが見つかりません。<br>
+  <code>pnpm build:overlay</code> を実行して <code>data/overlay/overlay.pmtiles</code> を作成してください。
+</div>
+
+<script>
+  const MIN_ZOOM = 5;
+  const MAX_ZOOM = 11;
+
+  // 令制国 = warm hues. color_class comes pre-computed (graph coloring over the
+  // 国 adjacency), so neighbouring 国 never share a colour.
+  const KUNI_PALETTE = ['#e76f51', '#f6d58e', '#d98cb3', '#b9855a', '#f4a261', '#c1666b'];
+  // 現代行政区域 = cool blues, lines only, so the two systems read as separate
+  // channels (warm fill vs. blue line) even when both are on.
+  const MODERN = { pref: '#1f5fa6', muni: '#4a90c2', prefText: '#0d3b66', muniText: '#1f4e79' };
+  const KUNI_LINE = '#7a3b1d';
+  const GUN_LINE = '#a0623f'; // lighter/thinner than the 国 border so the hierarchy reads
+  const KUNI_FILL_OPACITY = 0.5;
+  const GUN_LINE_OPACITY = 0.8;
+  const MUNI_LINE_OPACITY = 0.85;
+  const GUN_MIN_ZOOM = 7;       // ~800 郡 are too dense below this (matches the tiles)
+  const GUN_LABEL_MIN_ZOOM = 9;
+
+  const kuniFill = ['match', ['get', 'color_class']];
+  KUNI_PALETTE.forEach((color, i) => kuniFill.push(i, color));
+  kuniFill.push('#cccccc');
+
+  document.getElementById('kuni-chips').innerHTML =
+    KUNI_PALETTE.slice(0, 4).map((c) => `<i style="background:${c}"></i>`).join('');
+
+  const dataUrl = new URL('data/overlay/overlay.pmtiles', location.href).href;
+  maplibregl.addProtocol('pmtiles', new pmtiles.Protocol().tile);
+
+  const zoomRamp = (...stops) => ['interpolate', ['linear'], ['zoom'], ...stops];
+
+  // Background maps. Only the selected one is visible (hidden raster layers
+  // load no tiles); each carries its own attribution, which MapLibre shows
+  // only for sources that are currently in use.
+  const gsiCredit = (label) =>
+    `<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>（${label}）`;
+  const GSI = 'https://cyberjapandata.gsi.go.jp/xyz';
+  const BASEMAPS = {
+    osm: {
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
+    },
+    std: { tiles: [`${GSI}/std/{z}/{x}/{y}.png`], attribution: gsiCredit('標準地図') },
+    pale: { tiles: [`${GSI}/pale/{z}/{x}/{y}.png`], attribution: gsiCredit('淡色地図') },
+    photo: { tiles: [`${GSI}/seamlessphoto/{z}/{x}/{y}.jpg`], attribution: gsiCredit('全国最新写真（シームレス）') }
+  };
+  const DEFAULT_BASEMAP = 'osm';
+
+  const map = new maplibregl.Map({
+    container: 'map',
+    style: {
+      version: 8,
+      sources: {
+        ...Object.fromEntries(
+          Object.entries(BASEMAPS).map(([id, b]) => [
+            id,
+            { type: 'raster', tiles: b.tiles, tileSize: 256, maxzoom: MAX_ZOOM, attribution: b.attribution }
+          ])
+        ),
+        ov: { type: 'vector', url: `pmtiles://${dataUrl}` }
+      },
+      layers: Object.keys(BASEMAPS).map((id) => ({
+        id: `bg-${id}`,
+        type: 'raster',
+        source: id,
+        layout: { visibility: id === DEFAULT_BASEMAP ? 'visible' : 'none' }
+      }))
+    },
+    center: [137.5, 37.5],
+    zoom: 5.2,
+    minZoom: MIN_ZOOM,
+    maxZoom: MAX_ZOOM,
+    maxBounds: [[118, 20], [158, 49]],
+    renderWorldCopies: false,
+    localIdeographFontFamily: '"Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif',
+    attributionControl: {
+      compact: true,
+      customAttribution: [
+        '令制国・郡境界: <a href="https://bridge.nihu.jp/accumulateddata_detail/18045150" target="_blank" rel="noopener">幕末明治地勢地図境界データ</a>' +
+          '（人間文化研究機構, <a href="https://creativecommons.org/licenses/by-nc/4.0/deed.ja" target="_blank" rel="noopener">CC BY-NC 4.0</a>）',
+        '行政区域: <a href="https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2026.html" target="_blank" rel="noopener">国土数値情報（行政区域データ N03-20260101）</a>' +
+          '（国土交通省, <a href="https://creativecommons.org/licenses/by/4.0/deed.ja" target="_blank" rel="noopener">CC BY 4.0</a>）を加工して作成'
+      ]
+    }
+  });
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+
+  map.on('load', () => {
+    const add = (layer) => map.addLayer({ source: 'ov', ...layer });
+
+    // ---- 令制国 / 郡 (below the modern lines) ----
+    // Order matters: 国 fill, 郡 fill + thin lines, then the thick 国 border on top.
+    add({
+      id: 'kuni-fill', type: 'fill', 'source-layer': 'kuni',
+      paint: { 'fill-color': kuniFill, 'fill-opacity': KUNI_FILL_OPACITY }
+    });
+    // 郡 polygons carry their parent 国's color_class, so they use the same palette.
+    add({
+      id: 'gun-fill', type: 'fill', 'source-layer': 'gun', minzoom: GUN_MIN_ZOOM,
+      paint: { 'fill-color': kuniFill, 'fill-opacity': KUNI_FILL_OPACITY }
+    });
+    add({
+      id: 'gun-line', type: 'line', 'source-layer': 'gun', minzoom: GUN_MIN_ZOOM,
+      paint: {
+        'line-color': GUN_LINE,
+        'line-opacity': GUN_LINE_OPACITY,
+        'line-width': zoomRamp(GUN_MIN_ZOOM, 0.5, 11, 1.3)
+      }
+    });
+    add({
+      id: 'kuni-line', type: 'line', 'source-layer': 'kuni',
+      paint: { 'line-color': KUNI_LINE, 'line-width': zoomRamp(5, 0.9, 11, 2.6) }
+    });
+
+    // ---- 現代行政区域: thinner lines on top, so where a 令制国 border and a
+    // modern border coincide the blue core shows inside the brown one ----
+    add({
+      id: 'muni-line', type: 'line', 'source-layer': 'muni', minzoom: 8,
+      paint: {
+        'line-color': MODERN.muni,
+        'line-opacity': MUNI_LINE_OPACITY,
+        'line-width': zoomRamp(8, 0.5, 11, 1.1)
+      }
+    });
+    add({
+      id: 'pref-line', type: 'line', 'source-layer': 'pref',
+      paint: { 'line-color': MODERN.pref, 'line-width': zoomRamp(5, 1.1, 11, 2) }
+    });
+
+    // Invisible fills so a click can report the modern area under the cursor.
+    add({
+      id: 'pref-hit', type: 'fill', 'source-layer': 'pref', maxzoom: 8,
+      paint: { 'fill-color': '#000000', 'fill-opacity': 0.01 }
+    });
+    add({
+      id: 'muni-hit', type: 'fill', 'source-layer': 'muni', minzoom: 8,
+      paint: { 'fill-color': '#000000', 'fill-opacity': 0.01 }
+    });
+
+    // ---- labels: 令制国 first so it wins collisions ----
+    add({
+      id: 'kuni-label', type: 'symbol', 'source-layer': 'kuni_label',
+      layout: { 'text-field': ['get', 'name'], 'text-size': zoomRamp(5, 13, 11, 22) },
+      paint: { 'text-color': '#5a2a12', 'text-halo-color': '#fff8f0', 'text-halo-width': 2 }
+    });
+    add({
+      id: 'gun-label', type: 'symbol', 'source-layer': 'gun_label', minzoom: GUN_LABEL_MIN_ZOOM,
+      layout: { 'text-field': ['get', 'name'], 'text-size': zoomRamp(GUN_LABEL_MIN_ZOOM, 10, 11, 13) },
+      paint: { 'text-color': '#7a4a2b', 'text-halo-color': '#fff8f0', 'text-halo-width': 1.5 }
+    });
+    add({
+      id: 'pref-label', type: 'symbol', 'source-layer': 'pref_label', maxzoom: 10,
+      layout: { 'text-field': ['get', 'name'], 'text-size': zoomRamp(5, 11, 9, 15) },
+      paint: { 'text-color': MODERN.prefText, 'text-halo-color': '#ffffff', 'text-halo-width': 2 }
+    });
+    add({
+      id: 'muni-label', type: 'symbol', 'source-layer': 'muni_label', minzoom: 9,
+      layout: { 'text-field': ['get', 'name'], 'text-size': zoomRamp(9, 10, 11, 13) },
+      paint: { 'text-color': MODERN.muniText, 'text-halo-color': '#ffffff', 'text-halo-width': 1.5 }
+    });
+
+    applyLayers();
+  });
+
+  // Network/file problems on the tile source -> tell the user how to build it.
+  map.on('error', (e) => {
+    if (e.sourceId === 'ov') document.getElementById('notice').hidden = false;
+  });
+
+  // Reads the three layer checkboxes + the opacity slider and applies them.
+  function applyLayers() {
+    const on = Object.fromEntries(
+      [...document.querySelectorAll('input[name="layer"]')].map((i) => [i.value, i.checked])
+    );
+    const v = Number(document.getElementById('opacity').value);
+
+    const visibility = {
+      // the 国 fill also stays on for 郡 alone, so z5-6 (before 郡 tiles start) is not bare
+      'kuni-fill': on.kuni || on.gun,
+      'kuni-line': on.kuni,
+      'kuni-label': on.kuni,
+      'gun-fill': on.gun,
+      'gun-line': on.gun,
+      'gun-label': on.gun,
+      'muni-line': on.modern,
+      'pref-line': on.modern,
+      'muni-label': on.modern,
+      'pref-label': on.modern,
+      'pref-hit': on.modern,
+      'muni-hit': on.modern
+    };
+    for (const [id, visible] of Object.entries(visibility)) {
+      map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
+    }
+
+    // 郡 fill replaces the 国 fill from GUN_MIN_ZOOM up; otherwise the two
+    // translucent fills would stack into a darker colour.
+    const kuniFillOpacity = KUNI_FILL_OPACITY * v;
+    map.setPaintProperty(
+      'kuni-fill', 'fill-opacity',
+      on.gun ? ['step', ['zoom'], kuniFillOpacity, GUN_MIN_ZOOM, 0] : kuniFillOpacity
+    );
+    map.setPaintProperty('gun-fill', 'fill-opacity', kuniFillOpacity);
+    map.setPaintProperty('gun-line', 'line-opacity', GUN_LINE_OPACITY * v);
+    map.setPaintProperty('kuni-line', 'line-opacity', v);
+    map.setPaintProperty('pref-line', 'line-opacity', v);
+    map.setPaintProperty('muni-line', 'line-opacity', MUNI_LINE_OPACITY * v);
+
+    const legend = document.getElementById('legend');
+    legend.classList.toggle('hidden-kuni', !on.kuni);
+    legend.classList.toggle('hidden-gun', !on.gun);
+    legend.classList.toggle('hidden-modern', !on.modern);
+  }
+
+  function applyBasemap(selected) {
+    for (const id of Object.keys(BASEMAPS)) {
+      map.setLayoutProperty(`bg-${id}`, 'visibility', id === selected ? 'visible' : 'none');
+    }
+  }
+
+  for (const input of document.querySelectorAll('input[name="basemap"]')) {
+    input.addEventListener('change', () => applyBasemap(input.value));
+  }
+  for (const input of document.querySelectorAll('input[name="layer"]')) {
+    input.addEventListener('change', applyLayers);
+  }
+  document.getElementById('opacity').addEventListener('input', applyLayers);
+
+  // Click: report every system at the point (whichever are visible).
+  map.on('click', (e) => {
+    const layers = ['kuni-fill', 'gun-fill', 'pref-hit', 'muni-hit']
+      .filter((id) => map.getLayer(id) && map.getLayoutProperty(id, 'visibility') !== 'none');
+    const hits = map.queryRenderedFeatures(e.point, { layers });
+    const kuni = hits.find((f) => f.layer.id === 'kuni-fill');
+    const gun = hits.find((f) => f.layer.id === 'gun-fill');
+    const modern = hits.find((f) => f.layer.id === 'muni-hit') ?? hits.find((f) => f.layer.id === 'pref-hit');
+    if (!kuni && !gun && !modern) return;
+
+    const box = document.createElement('div');
+    const row = (label, text) => {
+      const p = document.createElement('p');
+      p.className = 'popup-row';
+      const b = document.createElement('b');
+      b.textContent = label;
+      p.append(b, text);
+      box.append(p);
+    };
+    if (kuni) {
+      const { name, kana } = kuni.properties;
+      row('令制国', kana ? `${name}（${kana}）` : name);
+    } else if (gun?.properties.kuni_name) {
+      row('令制国', gun.properties.kuni_name); // 郡 alone: its parent 国
+    }
+    if (gun) {
+      const { name, kana } = gun.properties;
+      row('郡', kana ? `${name}（${kana}）` : name);
+    }
+    if (modern) {
+      const { pref, name } = modern.properties;
+      row('現代', pref && pref !== name ? `${pref} ${name}` : name);
+    }
+    new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setDOMContent(box).addTo(map);
+  });
+</script>
+
+</body>
+</html>

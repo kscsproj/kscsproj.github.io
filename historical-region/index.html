@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>歴史行政区域ビューア</title>
+  <meta name="description" content="国土数値情報の行政区域データ（1920〜2026年・35時点）を時点スライダーで見て、合併・改称・分割をたどる">
+  <link rel="icon" href="data:,">
+  <script type="module" crossorigin src="./assets/index-DE5KVZSJ.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-CWAIjDQ5.css">
+</head>
+<body>
+  <div id="map" aria-label="行政区域の地図"></div>
+
+  <header class="topbar">
+    <h1>歴史行政区域ビューア</h1>
+    <button id="about-open" class="about-open" type="button" aria-haspopup="dialog">出典・ご利用にあたって</button>
+    <div class="search">
+      <label class="sr-only" for="q">市区町村名で検索</label>
+      <input id="q" type="search" placeholder="市区町村名で検索（例: 栃木市、高林村）" autocomplete="off" disabled>
+      <ul id="results" class="results" role="listbox" hidden></ul>
+    </div>
+  </header>
+
+  <aside id="panel" class="panel" aria-live="polite"></aside>
+  <div id="tip" class="tip" hidden></div>
+  <div id="toast" class="toast" hidden></div>
+
+  <section class="timebar" aria-label="時点の選択">
+    <div class="time-head">
+      <div class="date-box">
+        <output id="date" class="date">—</output>
+        <span id="era" class="era"></span>
+      </div>
+      <div class="count" id="count"></div>
+      <div class="options">
+        <label class="check"><input type="checkbox" id="pb" checked> 県境（太線）</label>
+        <label class="check"><input type="checkbox" id="lb" checked> 市区町村名</label>
+        <label class="check"><input type="checkbox" id="hl" checked> この時点で新しく現れた区域を強調</label>
+      </div>
+    </div>
+    <div class="time-ctl">
+      <button id="prev" type="button" aria-label="前の時点" title="前の時点 (←)">◀</button>
+      <button id="play" type="button" aria-label="再生" title="再生 / 停止 (Space)">▶</button>
+      <button id="next" type="button" aria-label="次の時点" title="次の時点 (→)">▶︎|</button>
+      <div class="slider-wrap">
+        <input id="slider" type="range" min="0" max="0" step="1" value="0" aria-label="時点">
+        <div id="ticks" class="ticks" aria-hidden="true"></div>
+      </div>
+    </div>
+    <p class="note">
+      出典: 国土交通省「国土数値情報（行政区域データ）」を加工して作成。背景: 地理院タイル。
+      35時点のスナップショットで、合併などの実際の日付は表示された時点とその前の時点の間にあります。
+      前後の版の関係は面積の重なりからの機械的な推定で、公式の沿革ではありません。
+      <button type="button" class="link" data-open-about>出典・注意の詳細</button>
+    </p>
+  </section>
+
+  <dialog id="about" class="about" aria-labelledby="about-title">
+    <form method="dialog" class="about-head">
+      <h2 id="about-title">出典・ご利用にあたって</h2>
+      <button class="about-close" aria-label="閉じる">×</button>
+    </form>
+    <div class="about-body">
+      <section>
+        <h3>このサイトについて</h3>
+        <p>国土交通省「国土数値情報（行政区域データ）」の1920年（大正9年）〜2026年（令和8年）の各年版（47都道府県・35時点）を加工して作成した、歴史的な行政区域の閲覧サイトです。国土交通省・国土地理院が作成・提供するものではありません。</p>
+      </section>
+
+      <section>
+        <h3>出典</h3>
+        <ul>
+          <li>出典：国土交通省 国土数値情報ダウンロードサイト「行政区域データ」<br>
+            <a href="https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2026.html" target="_blank" rel="noopener">https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2026.html</a></li>
+          <li>「国土数値情報（行政区域データ）」（国土交通省）を加工して作成</li>
+          <li>各年版の詳細ページ:
+            <a href="https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2026.html" target="_blank" rel="noopener">2026</a> /
+            <a href="https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2025.html" target="_blank" rel="noopener">2025</a> /
+            <a href="https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2024.html" target="_blank" rel="noopener">2024</a> /
+            <a href="https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2023.html" target="_blank" rel="noopener">2023</a> /
+            <a href="https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2022.html" target="_blank" rel="noopener">2022</a> /
+            <a href="https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2021.html" target="_blank" rel="noopener">2021</a> /
+            <a href="https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2020.html" target="_blank" rel="noopener">2020</a> /
+            <a href="https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2019.html" target="_blank" rel="noopener">2019</a> /
+            <a href="https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2018.html" target="_blank" rel="noopener">2018〜2016</a> /
+            <a href="https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2015.html" target="_blank" rel="noopener">2015以前</a></li>
+          <li>使用許諾: 2018年版以降はオープンデータ（CC BY 4.0 と互換の
+            <a href="https://nlftp.mlit.go.jp/ksj/other/agreement_01.html" target="_blank" rel="noopener">利用規約</a>）、それ以前の版は「商用可」（国土数値情報の<a href="https://nlftp.mlit.go.jp/ksj/other/agreement.html" target="_blank" rel="noopener">利用規約</a>）。</li>
+          <li>背景地図: 国土地理院
+            <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル（淡色地図）</a></li>
+        </ul>
+      </section>
+
+      <section>
+        <h3>加工の内容</h3>
+        <ul>
+          <li>市区町村（政令指定都市は区）ごとに、複数のポリゴンを1つにまとめています。</li>
+          <li>時点をまたいで同じ形の区域は、面積・重心・重なりの許容誤差で判定して、1つの「版」にまとめています。</li>
+          <li>前後の版の関係（合併・編入・改称・分割・境界変更）は、区域の面積の重なりから機械的に推定したものです。</li>
+          <li>座標は小数点以下6桁に丸め、地図タイルへの変換で形状を簡略化しています。</li>
+          <li>県境の線は、各県の市区町村を時点ごとに結合して生成したもので、海岸線を含みます。</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3>ご利用にあたっての注意</h3>
+        <ul>
+          <li><strong>成立・消滅の区分や前後の版の関係は推定で、公式の沿革ではありません。</strong>誤りを含むことがあります。正確な沿革は、総務省や自治体の公表資料で確認してください。</li>
+          <li>データは35時点のみです。合併などの実際の日付は、表示された時点とその前の時点の間にあります（日付が分かるのは、1920年版に記載された設置日・廃止日だけです）。</li>
+          <li>2005年版・2006年版の基準日は、データの内容（合併の反映状況）から判断して2006-01-01・2006-04-02としています。公式ページの記載と異なる場合があります。</li>
+          <li>境界は、原典の地図の縮尺や作成方法に依存した概略で、特に古い年版は精度が低くなります。測量・法的な証明・ナビゲーションには使えません。</li>
+          <li>正確性・完全性は保証しません。このサイトの利用により生じた損害について、責任を負いません。</li>
+          <li>このビューアの開発には生成AIを使用しています。</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3>原典と国土地理院長の承認表示</h3>
+        <p>国土数値情報の各年版ページが示す「原典資料」「作成方法（原典表示）」に従って記載します。</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>年版</th><th>原典資料</th><th>承認表示</th></tr></thead>
+            <tbody>
+              <tr><td>2026</td><td>国土地理院「数値地図（国土基本情報）」「地理院タイル」、総務省「全国地方公共団体コード一覧」</td><td>測量法に基づく国土地理院長承認（複製）R 7JHf 351</td></tr>
+              <tr><td>2025</td><td>同上</td><td>測量法に基づく国土地理院長承認（複製）R 6JHf 503</td></tr>
+              <tr><td>2024</td><td>同上</td><td>測量法に基づく国土地理院長承認（複製）R 5JHf 357</td></tr>
+              <tr><td>2023</td><td rowspan="4">国土地理院「数値地図（国土基本情報）」</td><td>測量法に基づく国土地理院長承認（複製）R 4JHf 430</td></tr>
+              <tr><td>2022</td><td>測量法に基づく国土地理院長承認（複製）R 3JHf 505</td></tr>
+              <tr><td>2021</td><td>測量法に基づく国土地理院長承認（複製）R2JHf 450</td></tr>
+              <tr><td>2020</td><td>測量法に基づく国土地理院長承認（複製）R 1JHf 1373</td></tr>
+              <tr><td>2019</td><td rowspan="5">国土地理院「数値地図（国土基本情報）」<br>（この地図は、国土地理院長の承認を得て、同院発行の数値地図（国土基本情報）電子国土基本図（地図情報）を複製したものです。）</td><td>承認番号 平30情複、第1397号</td></tr>
+              <tr><td>2018</td><td>承認番号 平29情複、第1455号</td></tr>
+              <tr><td>2017</td><td>承認番号 平28情複、第1283号</td></tr>
+              <tr><td>2016</td><td>承認番号 平27情複、第757号</td></tr>
+              <tr><td>2015</td><td>承認番号 平26情複、第520号</td></tr>
+              <tr><td>2014</td><td>国土地理院「数値地図（空間データ基盤）」<br>（この地図は、国土地理院長の承認を得て、同院発行の数値地図25000（空間データ基盤）を複製したものです。）</td><td>承認番号 平25情複、第581号</td></tr>
+              <tr><td>2013</td><td>国土地理院「数値地図（国土基本情報）」<br>（この地図は、国土地理院長の承認を得て、同院発行の数値地図（国土基本情報）電子国土基本図（地図情報）を複製したものです。）</td><td>承認番号 平27情複、第929号</td></tr>
+              <tr><td>2012〜2009<br>（2012-03-31、2012-04-01、2011-03-31、2010-10-01、2010-03-29、2009-03-20）</td><td>国土地理院「数値地図25000（地図画像）」<br>（この地図は、国土地理院長の承認を得て、同院発行の数値地図25000（地図画像）を使用しました。）</td><td>承認番号 平27情使、第720号</td></tr>
+              <tr><td>2007<br>（2007-04-01、2007-10-01）</td><td>国土地理院「数値地図（行政界・海岸線） 平成18年4月版（2006年（平成18年）4月1日現在）」、静岡県浜松市「1／25000都市計画図」（2007年4月作成）、新潟県新潟市「1／25000都市計画図」（2007年3月作成）、総務省自治行政局「琵琶湖内市町村界座標データ」<br>（この地図は、国土地理院長の承認を得て、同院発行の数値地図25000（行政界・海岸線）を使用しました。）</td><td>承認番号 平27情使、第720号</td></tr>
+              <tr><td>2006</td><td>国土地理院「数値地図25000（空間データ基盤）」、全国市町村名要覧、大阪府堺市「1／10000都市計画図」<br>（この地図は、国土地理院長の承認を得て、同院発行の2万5千分1地形図、数値地図25000（空間データ基盤）を使用しました。）</td><td>承認番号 平27情使、第720号</td></tr>
+              <tr><td>2005</td><td>国土地理院「数値地図25000（空間データ基盤）」、2万5千分1地形図<br>（この地図は、国土地理院長の承認を得て、同院発行の2万5千分1地形図、数値地図25000（空間データ基盤）を使用しました。）</td><td>承認番号 平27情使、第720号</td></tr>
+              <tr><td>2000</td><td>自治省行政局振興課編集「全国市区町村要覧」、国土地理院「2万5千分1地形図」<br>（この地図は、国土地理院長の承認を得て、同院発行の2万5千分1地形図を使用しました。）</td><td>承認番号 平27情使、第720号</td></tr>
+              <tr><td>1995</td><td>自治省行政局振興課編集「全国市町村要覧（平成7年度版）」、国土地理院「2万5千分1地形図」<br>（この地図は、国土地理院長の承認を得て、同院発行の2万5千分1地形図を使用しました。）</td><td>承認番号 平27情使、第720号</td></tr>
+              <tr><td>1985〜1955</td><td>国土政策局「国土数値情報（行政区域）」（1950年時点）、総務省統計局「平成7年国勢調査統計地理情報 町丁・字等別境界」データ、市町村自治研究会監修「全訂全国市町村名変遷総覧」（平成18年刊行）</td><td>（記載なし）</td></tr>
+              <tr><td>1950</td><td>総務省統計局「平成7年国勢調査統計地理情報 町丁・字等別境界」データ、市町村自治研究会監修「全訂全国市町村名変遷総覧」（平成18年刊行）</td><td>（記載なし）</td></tr>
+              <tr><td>1920</td><td>国土政策局「国土数値情報（行政区域）」（1950年時点）、国土地理院「旧版地図」「数値地図25000（地図画像）」<br>（この地図は、国土地理院長の承認を得て、同院発行の数値地図50000（地図画像）を使用しました。）</td><td>承認番号 平27情使、第720号</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </dialog>
+
+</body>
+</html>
